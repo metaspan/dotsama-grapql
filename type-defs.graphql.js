@@ -36,6 +36,8 @@ type Query {
   Pools(chain: String!, ids: [Int], offset: Int, limit: Int, search: String): [Pool]
   Candidate(chain: String!, stash: String): Candidate
   Candidates(chain: String!, offset: Int, limit: Int, search: String): [Candidate]
+  Exposure(chain: String!, era: Int, stash: String!): Exposure
+  Exposures(chain: String!, era: Int, stashes: [String]): [Exposure]
 }
 
 type Judgement {
@@ -128,6 +130,21 @@ type Candidate {
   democractVoteCount: Int
   democracyVotes: [Int]
   stale: Boolean
+  updatedAt: String
+}
+
+type OtherExposure {
+  who: String
+  value: Float
+}
+
+type Exposure {
+  chain: String!,
+  era: Int!,
+  stash: String!,
+  total: Float,
+  own: Float,
+  others: [OtherExposure],
   updatedAt: String
 }
 

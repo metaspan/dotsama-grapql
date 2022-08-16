@@ -6,10 +6,10 @@ import mongoose from 'mongoose'
 
 // const { environment } = require('./environment.ts');
 // import { mongoDbProvider } from './provider.mongodb';
-
-// import { MongoClient } from 'mongodb'
-// import ValidatorSource from './datasources/Validators.js'
-// import Nominators  from './datasources/Nominators.js'
+import { SubstrateApiProvider } from './provider.substrate.js'
+const ENDPOINT = 'parity'
+// make this available globally
+global.substrate = new SubstrateApiProvider(ENDPOINT)
 
 import typeDefs from './type-defs.graphql.js'
 import resolvers from './resolvers.js'
@@ -27,10 +27,19 @@ import resolvers from './resolvers.js'
       useUnifiedTopology: true
     })
     // .then(() => console.log('connected to mongodb!'));
+    console.log('connected to mongodb!')
   } catch (err) {
     console.error(err)
   }
-  console.log('connected to mongodb!')
+
+  try {
+    await substrate.connect()
+    // api.kusama = await ApiPromise.create({ provider: providers.kusama })
+    // api.polkadot = await ApiPromise.create({ provider: providers.polkadot })
+    console.log('connected to substrate apis!')
+  } catch (err) {
+    console.error(err)    
+  }
 
   // The ApolloServer constructor requires two parameters: your schema
   // definition and your set of resolvers.
@@ -57,10 +66,12 @@ import resolvers from './resolvers.js'
   server.listen().then(({ url }) => {
     console.log(`🚀  Server ready at ${url}`);
 
-    process.on('SIGINT', () => {
+    process.on('SIGINT', async () => {
       console.log('\nSIGINT, shutting down...')
       // client.close()
-      mongoose.disconnect()
+      await mongoose.disconnect()
+      await substrate.disconnect()
+      process.exit(0)
     })
   });
 
