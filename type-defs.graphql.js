@@ -1,4 +1,5 @@
 import { gql } from 'apollo-server'
+import BigInt from 'graphql-bigint'
 
 // // A schema is a collection of type definitions (hence "typeDefs")
 // // that together define the "shape" of queries that are executed against
@@ -22,22 +23,153 @@ import { gql } from 'apollo-server'
 
 const typeDefs = gql`
 
+scalar BigInt
+
 # The "Query" type is special: it lists all of the available queries that
 # clients can execute, along with the return type for each. In this
 # case, the "books" query returns an array of zero or more Books (defined above).
 type Query {
   # books: [Book]
-  Validator(chain: String!, stash: String): Validator
-  Validators(chain: String!, stashes: [String], offset: Int, limit: Int, search: String): [Validator]
+  ChainProperties(chain: String!): ChainProperties
+  Constants(chain: String!, section: String!): Constants
+  Account(chain: String!, accountId: String): Account
+  Accounts(chain: String!, ids: [String]): [Account]
+  Candidate(chain: String!, stash: String): Candidate
+  Candidates(chain: String!, stashes: [String], offset: Int, limit: Int, search: String): [Candidate]
+  Exposure(chain: String!, era: Int, stash: String!): Exposure
+  Exposures(chain: String!, era: Int, stashes: [String]): [Exposure]
+  Identity(chain: String!, accountId: String!): Identity
+  Identities(chain: String!, ids: [String]): [Identity]
   Nominator(chain: String!, accountId: String): Nominator
   Nominators(chain: String!, ids: [String], offset: Int, limit: Int, search: String): [Nominator]
   Pool(chain: String!, id: Int): Pool
   PoolMembers(chain: String!, id: Int): [Nominator]
   Pools(chain: String!, ids: [Int], offset: Int, limit: Int, search: String): [Pool]
-  Candidate(chain: String!, stash: String): Candidate
-  Candidates(chain: String!, offset: Int, limit: Int, search: String): [Candidate]
-  Exposure(chain: String!, era: Int, stash: String!): Exposure
-  Exposures(chain: String!, era: Int, stashes: [String]): [Exposure]
+  Validator(chain: String!, stash: String): Validator
+  ValidatorCount(chain: String!, search: String): Int
+  Validators(chain: String!, stashes: [String], offset: Int, limit: Int, search: String): [Validator]
+}
+
+type AccountData {
+  free: BigInt
+  reserved: BigInt
+  miscFrozen: BigInt
+  feeFrozen: BigInt
+}
+
+type Account {
+  accountId: String!
+  identity: Identity
+  nonce: Int
+  consumers: Int
+  providers: Int
+  sufficients: Int
+  data: AccountData
+}
+
+type ConstantsBalances {
+  existentialDeposit: BigInt # u128
+  maxLocks: Int    # u32
+  maxReserves: Int # u32
+}
+type Constants {
+#  alliance
+#  assets
+#  authorship
+#  babe
+#  bagsList
+  balances: ConstantsBalances
+#  bounties
+#  childBounties
+#  contracts
+#  convictionVoting
+#  democracy
+#  electionProviderMultiPhase
+#  elections
+#  gilt
+#  grandpa
+#  identity
+#  imOnline
+#  indices
+#  lottery
+#  multisig
+#  nominationPools
+#  proxy
+#  rankedPolls
+#  recovery
+#  referenda
+#  scheduler
+#  society
+#  staking
+#  stateTrieMigration
+#  system
+#  timestamp
+#  tips
+#  transactionPayment
+#  treasury
+#  uniquesutility
+#  vesting
+}
+
+type ChainProperties {
+  chain: String
+  ss58Format: Int
+  tokenDecimals: Int
+  tokenSymbol: String
+}
+
+type Candidate {
+  chain: String!
+  stash: String!
+  name: String
+  discoveredAt: String
+  nominatedAt: String
+  offlineSince: Int
+  offlineAccumulated: Int
+  rank: Int
+  faults: Int
+  invalidityReasons: String
+  unclainedEras: [String]
+  inclusion: Float
+  kusamaStash: String
+  commission: Int
+  # identity: ''
+  active: Boolean
+  valid: Boolean
+  validity: [CandidateValidity]
+  # score: ''
+  total: Float
+  location: String
+  councilStake: Float
+  councilVotes: [String]
+  democractVoteCount: Int
+  democracyVotes: [Int]
+  stale: Boolean
+  updatedAt: String
+  identity: Identity
+  onet: [Onet]
+}
+
+type CandidateValidity {
+  valid: Boolean
+  type: String
+  details: String
+  updated: BigInt
+}
+
+type ExposureOther {
+  who: String
+  value: Float
+}
+
+type Exposure {
+  chain: String!,
+  era: Int!,
+  stash: String!,
+  total: Float,
+  own: Float,
+  others: [ExposureOther],
+  updatedAt: String
 }
 
 type Judgement {
@@ -54,34 +186,82 @@ type IdentityInfo {
 }
 
 type Identity {
-  deposit: Int
+  chain: String!
+  accountId: String
+  deposit: BigInt
   info: IdentityInfo
   judgements: [Judgement]
-  sub_id: String
-  parent_identity: Identity
-}
-
-type Account {
-  accountId: String!
-  identity: Identity
-}
-
-type Validator {
-  chain: String!
-  stash: String!
-  shortStash: String
-  name: String
-  identity: Identity
-  nominators: [String] # NOT [Nominators] !!!
-  updatedAt: String
+  subId: String
+  parentIdentity: Identity
 }
 
 type Nominator {
   chain: String!
   accountId: String!
+  account: Account
   controllerId: String
   identity: Identity
-  targets: [String]
+  targetIds: [String]
+  targets: [Validator]
+  updatedAt: String
+  is1kv: Nominator1kv
+}
+
+type Nominator1kvIdentity {
+  name: String
+  sub: String
+  verified: Boolean
+  _id: String
+}
+
+type Nominator1kvCurrent {
+  name: String
+  stash: String
+  identity: Nominator1kvIdentity
+}
+
+type Nominator1kv {
+  chain: String
+  address: String
+  stash: String
+  proxy: String
+  bonded: Float
+  avgStake: Float
+  current: [Nominator1kvCurrent]
+  lastNomination: Float
+  nominationAmount: Float
+  newBondedAmount: Float
+  rewardDestination: String
+  createdAt: BigInt
+  updatedAt: String
+}
+
+type Onet {
+  chain: String
+  from_era: Int
+  to_era: Int
+  from_session: Int
+  to_session: Int
+  from_block: Int
+  to_block: Int
+  seq: Int
+  validator: String
+  stash: String
+  subset: String
+  active_sessions: Int
+  pv_sessions: Int
+  authored_blocks: Int
+  core_assignments: Int
+  implicit_votes: Int
+  explicit_votes: Int
+  missed_votes: Int
+  grade: String
+  mvr: Float
+  avg_ppts: Float
+  score: Float
+  commission: Int
+  commission_score: Float
+  timeline: String
   updatedAt: String
 }
 
@@ -103,51 +283,26 @@ type PoolMember {
   points: Float
 }
 
-type Candidate {
+type ValidatorPrefs {
+  commission: Int
+  blocked: Boolean
+}
+
+type Validator {
   chain: String!
   stash: String!
+  shortStash: String
   name: String
-  discoveredAt: String
-  nominatedAt: String
-  offlineSince: Int
-  offlineAccumulated: Int
-  rank: Int
-  faults: Int
-  invalidityReasons: String
-  unclainedEras: [String]
-  inclusion: Float
-  kusamaStash: String
-  commission: Int
-  # identity: ''
-  active: Boolean
-  valid: Boolean
-  # validity: [Validity]
-  # score: ''
-  total: Float
-  location: String
-  councilStake: Float
-  councilVotes: [String]
-  democractVoteCount: Int
-  democracyVotes: [Int]
-  stale: Boolean
+  identity: Identity
+  prefs: ValidatorPrefs
+  # nominatorIds: [String] # NOT [Nominators] !!!
+  nominators: [Nominator] # NOT [Nominators] !!!
   updatedAt: String
+  is1kv: Candidate
+  onet: [Onet]
 }
 
-type OtherExposure {
-  who: String
-  value: Float
-}
-
-type Exposure {
-  chain: String!,
-  era: Int!,
-  stash: String!,
-  total: Float,
-  own: Float,
-  others: [OtherExposure],
-  updatedAt: String
-}
-
+# NOT USED ... !!
 type User {
   """
   User ID.

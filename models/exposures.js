@@ -3,8 +3,8 @@ const { Schema } = mongoose;
 
 const modelSchema = new Schema({
   chain: { type: String, required: true, index: true },
-  era: Number,
-  stash: { type: String, required: true, index: { unique: true } },
+  era: { type: Number, required: true, index: true },
+  stash: { type: String, required: true, index: true },
   // shortStash: { type: String, required: true, index: true },
   // firstName: { type: String, required: true },
   // nominators: [{ type: String }],

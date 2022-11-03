@@ -1,9 +1,11 @@
+// NOT USED, we can get this from substrate API
+
 import mongoose from 'mongoose'
 const { Schema } = mongoose;
 
 const modelSchema = new Schema({
   chain: { type: String, required: true, index: true },
-  stash: { type: String, required: true, index: { unique: true } },
+  accountId: { type: String, required: true, index: { unique: true } },
   // shortStash: { type: String, required: true, index: true },
   name: { type: String, required: false, index: true },
   // firstName: { type: String, required: true },
@@ -27,7 +29,7 @@ const modelSchema = new Schema({
   identity: '',
   active: Boolean,
   valid: Boolean,
-  validity: [Object],
+  // validity: [Validity],
   score: '',
   total: Number,
   location: String,
@@ -40,4 +42,4 @@ const modelSchema = new Schema({
 });
 
 // module.exports = mongoose.model('users', userSchema);
-export default mongoose.model('Candidate', modelSchema, '1kv_candidate');
+export default mongoose.model('Account', modelSchema, 'w3f_account');

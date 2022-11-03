@@ -9,6 +9,7 @@ const modelSchema = new Schema({
   // firstName: { type: String, required: true },
   // nominators: [{ type: String }],
   identity: Object,
+  prefs: Object,
   nominators: [String],
   // lastName: { type: String, required: true },
   // userName: { type: String, required: true },
