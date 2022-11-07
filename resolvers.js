@@ -276,7 +276,14 @@ const resolvers = {
       //   id.parent_identity = pid
       // }
       return id
-    }
+    },
+    nominators: async (candidate, args) => {
+      const { chain, stash } = candidate
+      var crit = { chain, nominators: stash }
+      // console.debug('crit', crit)
+      const noms = await Nominators.find(crit)
+      return noms
+    },
   },
   Identity: {
     parentIdentity: async (identity, _) => {

@@ -129,7 +129,7 @@ type Candidate {
   rank: Int
   faults: Int
   invalidityReasons: String
-  unclainedEras: [String]
+  unclaimedEras: [String]
   inclusion: Float
   kusamaStash: String
   commission: Int
@@ -148,6 +148,7 @@ type Candidate {
   updatedAt: String
   identity: Identity
   onet: [Onet]
+  nominators: [Nominator]
 }
 
 type CandidateValidity {

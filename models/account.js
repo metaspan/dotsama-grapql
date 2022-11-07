@@ -22,7 +22,7 @@ const modelSchema = new Schema({
   rank: Number,
   faults: Number,
   invalidityReasons: String,
-  unclainedEras: [String],
+  unclaimedEras: [String],
   inclusion: Number,
   kusamaStash: String,
   commission: Number,

@@ -8,6 +8,7 @@ const modelSchema = new Schema({
   sessionIds: [String],
   controllerId: String,
   exposure: [String],
+  nominators: [String], // - renamed here to targets??
   targets: [String],
   rewardDestination: String,
   redeemable: Number,
