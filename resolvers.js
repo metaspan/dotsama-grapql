@@ -1,5 +1,6 @@
 import Validators from './models/validators.js'
 import Nominators1kv from './models/nominators-1kv.js'
+import Nominations1kv from './models/nominations-1kv.js'
 import Nominators from './models/nominators.js'
 import Pools from './models/pools.js'
 import Candidates from './models/candidate.js'
@@ -7,6 +8,7 @@ import Exposures from './models/exposures.js'
 import Accounts from './models/account.js'
 import Onet from './models/onet.js'
 import { identity } from './models/identity.js'
+import Identities from './models/identity-mongo.js'
 import { parseIdentity, asyncForEach } from './utils.js'
 import { hexToString } from '@polkadot/util'
 
@@ -61,7 +63,12 @@ const resolvers = {
     Accounts: async (_, args) => {
       var { chain = 'kusama', ids = null } = args
       const accounts = await substrate.api[chain].query.system.account.multi(ids)
-      return accounts.toJSON()
+      console.debug(accounts)
+      let ret = []
+      accounts.forEach((account, idx) => {
+        ret.push({ accountId: ids[idx], ...account.toJSON() })
+      })
+      return ret
     },
 
     Candidate: async (_, args) => {
@@ -76,6 +83,31 @@ const resolvers = {
       if (stashes) crit.stash = { '$in': stashes }
       if (search) crit.name = { $regex: new RegExp(search, 'i') }
       return await Candidates.find(crit).skip(offset).limit(limit)
+    },
+    CandidatesFeed: async (_, args) => {
+      console.log('CandidatesFeed', args)
+      var { chain, search, stashes, active=false, valid=false, score=0, rank=0, order='name', orderDir='asc', limit=10, cursor } = args
+      var crit = { chain }
+      if (stashes) crit.stash = { '$in': stashes }
+      if (search) crit.name = { $regex: new RegExp(search, 'i') }
+      if (valid) crit.valid = true
+      if (active) crit.active = 1
+      if (score) crit.score = { '$ge': score }
+      if (rank) crit.rank = { '$ge': rank }
+      var sort = {}; sort[order] = orderDir==='asc' ? 1 : -1
+      console.log('crit', crit)
+      const models = await Candidates.find(crit).sort(sort)
+      var fromPos = 0
+      if (cursor !== '') {
+        fromPos = models.findIndex(c => c.stash === cursor) + 1
+        // cursor = (models.length > 0) ? models[0].stash : ''
+      }
+      console.debug('found', models.length, 'models, cursor:', cursor)
+      // const newCursor = models.
+      console.debug('fromPos', fromPos)
+      const slice = models.slice(fromPos, fromPos + limit)
+      const newCursor = (slice.length > 0) ? slice[slice.length-1].stash : cursor
+      return { Candidates: slice, cursor: newCursor }
     },
 
     Exposure: async (_, args) => {
@@ -136,37 +168,40 @@ const resolvers = {
       var id = parseIdentity(_id) || {}
       id.accountId = accountId
       id.chain = chain
-      // console.log('id', id)
-      // const _parent = await substrate.api[chain].query.identity.superOf(accountId)
-      // console.log('parent', _parent.toString())
-      // if(_parent.toString()) {
-      //   const [parentId, subId] = _parent.toJSON() || []
-      //   // console.log('parentId, subId', parentId, hexToString(subId.raw))
-      //   const _pid = await substrate.api[chain].query.identity.identityOf(parentId)
-      //   const pid = parseIdentity(_pid)
-      //   // console.log('pid', pid)
-      //   pid.accountId = parentId.toString()
-      //   id.chain = chain
-      //   id.accountId = accountId
-      //   id.subId = hexToString(subId.raw)
-      //   id.parentIdentity = pid
-      // }
-      // var ret = { chain, era, stash }
       return id
     },
     Identities: async (_, args) => {
-      // console.log('Identities', args)
-      var { chain = 'kusama', ids = null } = args
-      const res = await substrate.api[chain].query.identity.identityOf.multi(ids)
-      // console.log(res[0].toJSON())
-      var ret = []
-      res?.forEach((m, idx) => {
-        let id = parseIdentity(m) || {}
-        if (id) id.accountId = ids[idx]; else id = { accountId: ids[idx] }
-        id.chain = chain
-        ret.push(id)
-      })
-      return ret
+      console.log('Identities', args)
+      var { chain = 'kusama', ids = null, search = null, offset = 0, limit = 50 } = args
+      // const res = await substrate.api[chain].query.identity.identityOf.multi(ids)
+      // // console.log(res[0].toJSON())
+      // var ret = []
+      // res?.forEach((m, idx) => {
+      //   let id = parseIdentity(m) || {}
+      //   if (id) id.accountId = ids[idx]; else id = { accountId: ids[idx] }
+      //   id.chain = chain
+      //   ret.push(id)
+      // })
+      limit = Math.min(limit, 100)
+      var crit = { chain }
+      if ( ids ) crit.accountId = { '$in': ids }
+      const re = new RegExp(search, 'i')
+      if ( search ) crit = {
+        chain,
+        // 'identity.info.display': { $regex: search, $options: 'i' }
+        $or: [
+          { 'identity.info.display': { $regex: search, $options: 'i' } },
+          { 'identity.info.email': { $regex: search, $options: 'i' } },
+          { 'identity.info.legal': { $regex: search, $options: 'i' } },
+          { 'identity.info.riot': { $regex: search, $options: 'i' } },
+          { 'identity.info.twitter': { $regex: search, $options: 'i' } },
+          { 'identity.info.web': { $regex: search, $options: 'i' } },
+        ]
+      }
+      console.log('crit', JSON.stringify(crit))
+      // const count = await Identities.count(crit)
+      const records = await Identities.find(crit).skip(offset).limit(limit)
+      return records
     },
 
     Nominator: async (_, args) => {
@@ -194,8 +229,10 @@ const resolvers = {
       console.log('Pool', args)
       const { chain = 'kusama', id = null } = args
       const result = await Pools.findOne({chain, id})
-      // console.log('result', result)
+      // console.log('Pool: result', result)
       return result
+      // const { chain = 'kusama', stash = null } = args
+      // return await Pools.findOne({chain, stash})
     },
     // PoolMembers: async (_, args) => {
     //   console.log('PoolMembers', args)
@@ -277,6 +314,13 @@ const resolvers = {
       // }
       return id
     },
+    nominated_1kv: async (candidate, args) => {
+      const { chain, stash } = candidate
+      console.debug('Candidnate.nominated_1kv', chain, stash)
+      const latest = await Nominations1kv.find({ chain }).sort({ era: -1 }).limit(1) //.toArray()
+      // console.log('latest', latest)
+      return latest[0]?.validators?.includes(stash) || false
+    },
     nominators: async (candidate, args) => {
       const { chain, stash } = candidate
       var crit = { chain, nominators: stash }
@@ -310,6 +354,40 @@ const resolvers = {
       return pid
     },
   },
+  Nominator: {
+    account: async (nominator, args) => {
+      // console.log('Nominator.account()', nominator, args)
+      const chain = nominator.chain
+      const acc = await substrate.api[chain].query.system.account(nominator.accountId)
+      var account = acc.toJSON()
+      // here it's part of the parent, so we don't need to set the accountId in the account
+      // account.accountId = nominator.accountId
+      // console.log('result', account)
+      return account
+    },
+    is1kv: async (nominator, _) => {
+      const crit = { chain: nominator.chain, address: nominator.accountId }
+      console.debug('Nominator.is1kv()', crit)
+      const nom = await Nominators1kv.findOne(crit)
+      return nom
+    },
+    targetIds: async (nominator, _) => {
+      // return nominator.targets
+      return nominator.nominators
+    },
+    targets: async (nominator, args) => {
+      // console.log('Nominator.targets()', nominator, args)
+      // const { chain = 'kusama' } = args;
+      var crit = { chain: nominator.chain }
+      // const stashes = Array.from(new Set(nominator.targets))
+      // crit.stash = { '$in': stashes }
+      crit.stash = { '$in': nominator.nominators }
+      // console.log('crit', crit)
+      const records = await Validators.find(crit) // .skip(offset).limit(limit)
+      // console.log('found', records.length)
+      return records
+    }
+  },
   Validator: {
     // nominators: (validator, _, { dataSources: { Nominators } }) => {
     nominators: async (validator, args) => {
@@ -338,37 +416,6 @@ const resolvers = {
       const crit = { chain: validator.chain, stash: validator.stash }
       const onets = await Onet.find(crit).sort({to_era: 1}).limit(50)
       return onets
-    }
-  },
-  Nominator: {
-    account: async (nominator, args) => {
-      // console.log('Nominator.account()', nominator, args)
-      const chain = nominator.chain
-      const acc = await substrate.api[chain].query.system.account(nominator.accountId)
-      var account = acc.toJSON()
-      // here it's part of the parent, so we don't need to set the accountId in the account
-      // account.accountId = nominator.accountId
-      // console.log('result', account)
-      return account
-    },
-    is1kv: async (nominator, _) => {
-      const crit = { chain: nominator.chain, address: nominator.accountId }
-      const nom = await Nominators1kv.findOne(crit)
-      return nom
-    },
-    targetIds: async (nominator, _) => {
-      return nominator.targets
-    },
-    targets: async (nominator, args) => {
-      // console.log('Nominator.targets()', nominator, args)
-      // const { chain = 'kusama' } = args;
-      var crit = { chain: nominator.chain }
-      const stashes = Array.from(new Set(nominator.targets)) //.map(m => m.accountId)
-      crit.stash = { '$in': stashes }
-      // console.log('crit', crit)
-      const records = await Validators.find(crit) // .skip(offset).limit(limit)
-      // console.log('found', records.length)
-      return records
     }
   }
 }

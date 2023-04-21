@@ -35,19 +35,29 @@ type Query {
   Account(chain: String!, accountId: String): Account
   Accounts(chain: String!, ids: [String]): [Account]
   Candidate(chain: String!, stash: String): Candidate
+  CandidatesFeed(chain: String!, search: String, stashes: [String], active: Boolean
+    valid: Boolean
+    score: Int
+    rank: Int,
+    order: String, orderDir: String, limit: Int, cursor: String!): CandidatesFeedResponse
   Candidates(chain: String!, stashes: [String], offset: Int, limit: Int, search: String): [Candidate]
   Exposure(chain: String!, era: Int, stash: String!): Exposure
   Exposures(chain: String!, era: Int, stashes: [String]): [Exposure]
   Identity(chain: String!, accountId: String!): Identity
-  Identities(chain: String!, ids: [String]): [Identity]
+  Identities(chain: String!, ids: [String], search: String, offset: Int, limit: Int): [Identity]
   Nominator(chain: String!, accountId: String): Nominator
-  Nominators(chain: String!, ids: [String], offset: Int, limit: Int, search: String): [Nominator]
+  Nominators(chain: String!, ids: [String], search: String, offset: Int, limit: Int): [Nominator]
   Pool(chain: String!, id: Int): Pool
   PoolMembers(chain: String!, id: Int): [Nominator]
   Pools(chain: String!, ids: [Int], offset: Int, limit: Int, search: String): [Pool]
   Validator(chain: String!, stash: String): Validator
   ValidatorCount(chain: String!, search: String): Int
   Validators(chain: String!, stashes: [String], offset: Int, limit: Int, search: String): [Validator]
+}
+
+type CandidatesFeedResponse {
+  cursor: String!
+  Candidates: [Candidate]
 }
 
 type AccountData {
@@ -132,12 +142,11 @@ type Candidate {
   unclaimedEras: [String]
   inclusion: Float
   kusamaStash: String
-  commission: Int
-  # identity: ''
+  commission: Float
   active: Boolean
   valid: Boolean
   validity: [CandidateValidity]
-  # score: ''
+  score: CandidateScore
   total: Float
   location: String
   councilStake: Float
@@ -149,6 +158,37 @@ type Candidate {
   identity: Identity
   onet: [Onet]
   nominators: [Nominator]
+  nominated_1kv: Boolean
+}
+
+type CandidateScore {
+  address: String # "HyLisujX7Cr6D7xzb6qadFdedLt8hmArB6ZVGJ6xsCUHqmx"
+  aggregate: Float # 505.58780307301714
+  bonded: Float # 50
+  councilStake: Float # 50
+  country: Float # 3.414634146341463
+  delegations: Float # 0
+  democracy: Float # 67.15100461498155
+  discovered: Float # 1.775261802442346
+  faults: Float # 3.888888888888889
+  inclusion: Float # 0
+  location: Float # 40
+  nominated: Float # 3.6016871207527856
+  nominatorStake: Float # 6.9843835426611465
+  offline: Float # 2
+  openGov: Float # 60.555555555555564
+  openGovDelegations: Float # 0
+  provider: Float # 100
+  randomness: Float # 1.0878045503356144
+  rank: Float # 1.9306731156791614
+  region: Float # 0
+  session: Float # 29133
+  spanInclusion: Float # 114.28571428571428
+  total: Float # 549.9807127770146
+  unclaimed: Float # 0
+  updated: BigInt # 1679841084029
+  #__v: 0
+  #_id: "6420573c51945800774aa1b9"
 }
 
 type CandidateValidity {
@@ -186,14 +226,28 @@ type IdentityInfo {
   web: String
 }
 
+type NewIdentity {
+  deposit: BigInt
+  info: IdentityInfo
+  # judgements: [Judgement]
+  judgements: [String]
+  sub: String
+  parent: String
+  children: [String]
+}
+
 type Identity {
   chain: String!
   accountId: String
+  identity: NewIdentity
   deposit: BigInt
   info: IdentityInfo
-  judgements: [Judgement]
+  # judgements: [Judgement]
+  judgements: [String]
   subId: String
   parentIdentity: Identity
+  sub: String #/ new for identityIndex
+  parent: String #/ new for identityIndex
 }
 
 type Nominator {
@@ -260,7 +314,7 @@ type Onet {
   mvr: Float
   avg_ppts: Float
   score: Float
-  commission: Int
+  commission: Float
   commission_score: Float
   timeline: String
   updatedAt: String
