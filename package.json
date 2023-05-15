@@ -17,6 +17,6 @@
     "dotenv": "^16.0.1",
     "graphql": "^16.5.0",
     "mongodb": "^5.1.0",
-    "mongoose": "^6.5.1"
+    "mongoose": "^7.1.1"
   }
 }
