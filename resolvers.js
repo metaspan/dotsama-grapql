@@ -74,7 +74,9 @@ const resolvers = {
     Candidate: async (_, args) => {
       console.log('Candidate', args)
       const { chain = 'kusama', stash = null } = args
-      return await Candidates.findOne({chain, stash})
+      const candidate = await Candidates.findOne({chain, stash})
+      // console.log('result', candidate)
+      return candidate
     },
     Candidates: async (_, args) => {
       console.log('Candidates', args)
@@ -86,16 +88,38 @@ const resolvers = {
     },
     CandidatesFeed: async (_, args) => {
       console.log('CandidatesFeed', args)
-      var { chain, search, stashes, active=false, valid=false, score=0, rank=0, order='name', orderDir='asc', limit=10, cursor } = args
+      var { chain, search, stashes, active=false, valid=false, nominated_1kv=false, score=0, rank=0, order='name', orderDir='asc', limit=10, cursor } = args
       var crit = { chain }
       if (stashes) crit.stash = { '$in': stashes }
       if (search) crit.name = { $regex: new RegExp(search, 'i') }
       if (valid) crit.valid = true
       if (active) crit.active = 1
+      if (nominated_1kv) { // crit.nominated_1kv = 1
+        try {
+          const lastNomination = await Nominations1kv.find({}).sort({ era: -1 }).limit(1)
+          const lastEra = lastNomination[0].era;
+          let nominated = await Nominations1kv.aggregate([
+            { $match: { era: lastEra } },
+            { $unwind: "$validators" },
+            { $group: { _id: "$validators" } }
+          ])
+          nominated = nominated.map(m => m._id) //.toArray()
+          // console.debug('nominated', nominated)
+          if (crit.stash) {
+            // filter crit.stash for the items in nominated
+            crit.stash = { '$in': crit.stash['$in'].filter(f => nominated.contains(f)) }
+          } else {
+            crit.stash = { '$in': nominated }
+          }
+        } catch(err) {
+          console.error(err)
+        }
+      }
       if (score) crit.score = { '$ge': score }
       if (rank) crit.rank = { '$ge': rank }
-      var sort = {}; sort[order] = orderDir==='asc' ? 1 : -1
-      console.log('crit', crit)
+      var sort = {}; sort[order] = orderDir // ==='asc' ? 1 : -1
+      // console.log('crit', crit)
+      // console.log('sort', sort)
       const models = await Candidates.find(crit).sort(sort)
       var fromPos = 0
       if (cursor !== '') {
@@ -215,12 +239,25 @@ const resolvers = {
       console.log('Nominators', args)
       var { chain = 'kusama', ids = null, search = null, offset = 0, limit = 50 } = args;
       // return datasources.validators.getValidators() // s.getValidator,
-      limit = Math.min(limit, 100)
+      limit = Math.min(limit, 200)
       var crit = { chain }
       if ( ids ) crit.accountId = { '$in': ids }
       console.log('crit', crit)
       const count = await Nominators.count(crit)
       const records = await Nominators.find(crit).skip(offset).limit(limit)
+      console.log('total', count, 'found', records.length)
+      return records
+    },
+    Nominators1kv: async (_, args) => {
+      console.log('Nominators1kv', args)
+      var { chain = 'kusama', ids = null, search = null, offset = 0, limit = 50 } = args;
+      // return datasources.validators.getValidators() // s.getValidator,
+      limit = Math.min(limit, 200)
+      var crit = { chain }
+      if ( ids ) crit.accountId = { '$in': ids }
+      console.log('crit', crit)
+      const count = await Nominators1kv.count(crit)
+      const records = await Nominators1kv.find(crit).skip(offset).limit(limit)
       console.log('total', count, 'found', records.length)
       return records
     },
@@ -316,16 +353,33 @@ const resolvers = {
     },
     nominated_1kv: async (candidate, args) => {
       const { chain, stash } = candidate
-      console.debug('Candidnate.nominated_1kv', chain, stash)
-      const latest = await Nominations1kv.find({ chain }).sort({ era: -1 }).limit(1) //.toArray()
-      // console.log('latest', latest)
-      return latest[0]?.validators?.includes(stash) || false
+      console.debug('Candidate.nominated_1kv', chain, stash)
+      try {
+        // not from Nominations, this is a 'history'
+        // const latest = await Nominations1kv.find({}).sort({ era: -1 }).limit(1)
+        // console.log('latest', latest)
+        // const latestEra = latest[0].era;
+        // const records = await Nominations1kv.find({ chain, era: latestEra, validators: { '$in': [candidate.stash]} }) //.sort({ era: -1 }).limit(1) //.toArray()
+        const records = await Nominators1kv.aggregate([
+          { $match: { chain } },
+          { $unwind: '$current' },
+          { $group: { _id: '$current.stash' } },
+          { $match: { _id: stash } }
+        ])
+        // console.log('records', records)
+        return records.length > 0 || false  
+      } catch(err) {
+        console.error(err)
+        return false
+      }
     },
     nominators: async (candidate, args) => {
       const { chain, stash } = candidate
+      const { limit = 50 } = args
+      console.debug('Candidate.nominators()', chain, stash, args)
       var crit = { chain, nominators: stash }
       // console.debug('crit', crit)
-      const noms = await Nominators.find(crit)
+      const noms = await Nominators.find(crit).sort({'account.data.free': 'desc'}).limit(limit)
       return noms
     },
   },
@@ -362,7 +416,7 @@ const resolvers = {
       var account = acc.toJSON()
       // here it's part of the parent, so we don't need to set the accountId in the account
       // account.accountId = nominator.accountId
-      // console.log('result', account)
+      console.log('Nominator.account', account)
       return account
     },
     is1kv: async (nominator, _) => {
@@ -394,7 +448,8 @@ const resolvers = {
       // const { chain = 'kusama', stashes = null, search = null, offset = 0, limit = 50 } = args;
       // console.log('woo hoo', validator, chain)
       var crit = { chain: validator.chain }
-      crit.accountId = {'$in': validator?.nominators || [] }
+      // crit.accountId = {'$in': validator?.nominators || [] }
+      crit.nominators = { '$in': [validator.stash] }
       console.debug('crit', crit)
       const noms = await Nominators.find(crit)
       return noms

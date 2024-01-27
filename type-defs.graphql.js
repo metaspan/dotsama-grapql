@@ -37,6 +37,7 @@ type Query {
   Candidate(chain: String!, stash: String): Candidate
   CandidatesFeed(chain: String!, search: String, stashes: [String], active: Boolean
     valid: Boolean
+    nominated_1kv: Boolean
     score: Int
     rank: Int,
     order: String, orderDir: String, limit: Int, cursor: String!): CandidatesFeedResponse
@@ -47,6 +48,7 @@ type Query {
   Identities(chain: String!, ids: [String], search: String, offset: Int, limit: Int): [Identity]
   Nominator(chain: String!, accountId: String): Nominator
   Nominators(chain: String!, ids: [String], search: String, offset: Int, limit: Int): [Nominator]
+  Nominators1kv(chain: String!, ids: [String], search: String, offset: Int, limit: Int): [Nominator1kv]
   Pool(chain: String!, id: Int): Pool
   PoolMembers(chain: String!, id: Int): [Nominator]
   Pools(chain: String!, ids: [Int], offset: Int, limit: Int, search: String): [Pool]
@@ -130,34 +132,55 @@ type ChainProperties {
 
 type Candidate {
   chain: String!
-  stash: String!
-  name: String
-  discoveredAt: String
-  nominatedAt: String
-  offlineSince: Int
-  offlineAccumulated: Int
-  rank: Int
-  faults: Int
-  invalidityReasons: String
-  unclaimedEras: [String]
-  inclusion: Float
-  kusamaStash: String
-  commission: Float
   active: Boolean
+  bonded: Float
+  commission: Float
+  controller: String
+  convictionVoteCount: Int
+  convictionVotes: [Int]
+  coreCount: Int
+  country: String
+  cpu: String
+  # councilStake: Float
+  # councilVotes: [String]
+  # democractVoteCount: Int
+  # democracyVotes: [Int]
+  discoveredAt: String
+  faults: Int
+  identity: Identity
+  implementation: String
+  inclusion: Float
+  # invalidityReasons: String
+  kusamaStash: String
+  location: String
+  matrix: [String]
+  memory: String
+  name: String
+  nextKeys: String
+  nominatedAt: String
+  # nominations: {}
+  offlineAccumulated: Int
+  offlineSince: Int
+  # openGovDelecations: {}
+  provider: String
+  queuedKeys: String
+  rank: Int
+  region: String
+  rewardDestination: String
+  score: CandidateScore
+  stash: String!
+  total: Float
+  unclaimedEras: [String]
   valid: Boolean
   validity: [CandidateValidity]
-  score: CandidateScore
-  total: Float
-  location: String
-  councilStake: Float
-  councilVotes: [String]
-  democractVoteCount: Int
-  democracyVotes: [Int]
+  # is this used?
   stale: Boolean
+  version: String
+  vm: Boolean
+  # internal fields
   updatedAt: String
-  identity: Identity
   onet: [Onet]
-  nominators: [Nominator]
+  nominators(limit: Int): [Nominator]
   nominated_1kv: Boolean
 }
 
