@@ -17,7 +17,7 @@ function parseIdentity(id) {
   const idj = id.toJSON()
   // console.debug('idj', idj)
   if (idj) {
-    const judgements = idj.judgements.map(([idx, value]) => Object.keys(value) )[0]
+    const judgements = idj.judgements?.map(([idx, value]) => Object.keys(value) )[0] || []
     return {
       deposit: idj.deposit,
       info: {

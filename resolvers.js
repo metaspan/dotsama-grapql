@@ -75,7 +75,15 @@ const resolvers = {
       console.log('Candidate', args)
       const { chain = 'kusama', stash = null } = args
       const candidate = await Candidates.findOne({chain, stash})
-      // console.log('result', candidate)
+      if (!candidate) return { chain, stash }
+      // recalculate 'valid' from validity
+      let valid = true
+      for (let i = 0; i < candidate.validity?.length; i++) {
+        let validity = candidate.validity[i]
+        if (validity.valid === false) valid = false
+      }
+      candidate.valid = valid // candidate.valid || false
+      console.log('candidate', candidate)
       return candidate
     },
     Candidates: async (_, args) => {
@@ -84,7 +92,18 @@ const resolvers = {
       var crit = { chain }
       if (stashes) crit.stash = { '$in': stashes }
       if (search) crit.name = { $regex: new RegExp(search, 'i') }
-      return await Candidates.find(crit).skip(offset).limit(limit)
+      const models = await Candidates.find(crit).skip(offset).limit(limit)
+      // recalculate 'valid' from validity
+      for (let j = 0; j < models.length; j++) {
+        let candidate = models[j]
+        let valid = true
+        for (let i = 0; i < candidate.validity.length; i++) {
+          let validity = candidate.validity[i]
+          if (validity.valid === false) valid = false
+        }
+        candidate.valid = valid // candidate.valid || false  
+      }
+      return models
     },
     CandidatesFeed: async (_, args) => {
       console.log('CandidatesFeed', args)
@@ -118,9 +137,19 @@ const resolvers = {
       if (score) crit.score = { '$ge': score }
       if (rank) crit.rank = { '$ge': rank }
       var sort = {}; sort[order] = orderDir // ==='asc' ? 1 : -1
-      // console.log('crit', crit)
+      console.log('crit', crit)
       // console.log('sort', sort)
       const models = await Candidates.find(crit).sort(sort)
+      // recalculate 'valid' from validity
+      for (let j = 0; j < models.length; j++) {
+        let candidate = models[j]
+        let valid = true
+        for (let i = 0; i < candidate.validity.length; i++) {
+          let validity = candidate.validity[i]
+          if (validity.valid === false) valid = false
+        }
+        candidate.valid = valid // candidate.valid || false  
+      }
       var fromPos = 0
       if (cursor !== '') {
         fromPos = models.findIndex(c => c.stash === cursor) + 1

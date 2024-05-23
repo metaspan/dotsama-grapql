@@ -42,6 +42,7 @@ const modelSchema = new Schema({
   stash: { type: String, required: true, index: { unique: true } },
   total: Number,
   unclaimedEras: [String],
+  valid: Boolean,
   validity: [Object],
   // # is this used?
   stale: Boolean,
